@@ -11,6 +11,7 @@ namespace Microsoft.Samples.Kinect.SkeletonBasics
     using System.Windows.Media;
     using Microsoft.Kinect;
     using System.Collections;
+    using System;
 
     /// <summary>
     /// Interaction logic for MainWindow.xaml
@@ -83,6 +84,8 @@ namespace Microsoft.Samples.Kinect.SkeletonBasics
         private DrawingImage imageSource;
 
         private ArrayList tab;
+        private DateTime lastGangNam;
+
         /// <summary>
         /// Initializes a new instance of the MainWindow class.
         /// </summary>
@@ -90,6 +93,7 @@ namespace Microsoft.Samples.Kinect.SkeletonBasics
         {
             InitializeComponent();
             tab = new ArrayList();
+            lastGangNam = DateTime.Now;
         }
 
         /// <summary>
@@ -231,7 +235,7 @@ namespace Microsoft.Samples.Kinect.SkeletonBasics
                         if (skel.TrackingState == SkeletonTrackingState.Tracked)
                         {
                             this.DrawBonesAndJoints(skel, dc);
-                            this.computeGangnam(skel,dc);
+                            this.isDoingGangNamStyle(skel,dc);
                         }
                         else if (skel.TrackingState == SkeletonTrackingState.PositionOnly)
                         {
@@ -378,7 +382,7 @@ namespace Microsoft.Samples.Kinect.SkeletonBasics
             }
         }
 
-        private void computeGangnam(Skeleton skel, DrawingContext dc){
+        private void isDoingGangNamStyle(Skeleton skel, DrawingContext dc){
             // Left wrist not tracked
             if (skel.Joints[JointType.WristLeft].TrackingState != JointTrackingState.Tracked)
                 return;
@@ -390,17 +394,53 @@ namespace Microsoft.Samples.Kinect.SkeletonBasics
             double xdiff = System.Math.Pow(skel.Joints[JointType.WristLeft].Position.X - skel.Joints[JointType.WristRight].Position.X, 2.0);
             double ydiff = System.Math.Pow(skel.Joints[JointType.WristLeft].Position.Y - skel.Joints[JointType.WristRight].Position.Y, 2.0);
 
-            double distance = System.Math.Sqrt(xdiff + ydiff);
+            double distanceBetweenWrists = System.Math.Sqrt(xdiff + ydiff);
 
-            // Close wrists < 5 cm
-            if (distance < 0.10)
+            DateTime now = System.DateTime.Now;
+            string text = "";
+
+            // Close wrists < 25 cm
+            if (distanceBetweenWrists < 0.25)
             {
-                tab.Add(skel.Joints[JointType.WristLeft].Position);
+                // Crossed wrists
+                if (skel.Joints[JointType.HandLeft].Position.X > skel.Joints[JointType.HandRight].Position.X &&
+                skel.Joints[JointType.ElbowLeft].Position.X < skel.Joints[JointType.ElbowRight].Position.X)
+                {
+                    // Gathering last Gangnam timestamp
+                    lastGangNam = now;
+                    text = "Gangnam Style! " + lastGangNam.Minute + ":" + lastGangNam.Second + ":" + lastGangNam.Millisecond;
+                    //tab.Add(skel.Joints[JointType.WristLeft].Position);
+                }
+                else
+                {
+                    // Checking if Gangnam Style has been stopped since more than 1 second
+                    if (now.CompareTo(lastGangNam.AddSeconds(1)) < 0)
+                    {
+                        TimeSpan remaining = now.Subtract(lastGangNam.AddSeconds(1));
+                        text = "Losing Gangnam Style " + remaining;
+                    }
+                    else
+                    {
+                        text = "Close wrists ";
+                    }
+                }
             }
             else
             {
-                tab = new ArrayList();
+                // Checking if Gangnam Style has been stopped since more than 1 second
+                if (now.CompareTo(lastGangNam.AddSeconds(1)) < 0)
+                {
+                    TimeSpan remaining = now.Subtract(lastGangNam.AddSeconds(1));
+                    text = "Losing Gangnam Style " + remaining;
+                }
             }
+
+            dc.DrawText(new FormattedText(text,
+                        new System.Globalization.CultureInfo("fr-FR", false),
+                        System.Windows.FlowDirection.LeftToRight,
+                        new System.Windows.Media.Typeface("Verdana"),
+                        24.0,
+                        Brushes.Aqua), new Point(10, 10));
         }
     }
 }
