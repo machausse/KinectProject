@@ -12,6 +12,8 @@ namespace Microsoft.Samples.Kinect.SkeletonBasics
     using Microsoft.Kinect;
     using System.Collections;
     using System;
+    using System.Windows.Controls;
+    using System.Windows.Media.Imaging;
 
     /// <summary>
     /// Interaction logic for MainWindow.xaml
@@ -83,8 +85,8 @@ namespace Microsoft.Samples.Kinect.SkeletonBasics
         /// </summary>
         private DrawingImage imageSource;
 
-        private ArrayList tab;
-        private DateTime lastGangNam;
+        private DateTime lastClicking;
+        private Boolean clicking;
 
         /// <summary>
         /// Initializes a new instance of the MainWindow class.
@@ -92,8 +94,6 @@ namespace Microsoft.Samples.Kinect.SkeletonBasics
         public MainWindow()
         {
             InitializeComponent();
-            tab = new ArrayList();
-            lastGangNam = DateTime.Now;
         }
 
         /// <summary>
@@ -235,7 +235,6 @@ namespace Microsoft.Samples.Kinect.SkeletonBasics
                         if (skel.TrackingState == SkeletonTrackingState.Tracked)
                         {
                             this.DrawBonesAndJoints(skel, dc);
-                            this.isDoingGangNamStyle(skel,dc);
                         }
                         else if (skel.TrackingState == SkeletonTrackingState.PositionOnly)
                         {
@@ -251,6 +250,8 @@ namespace Microsoft.Samples.Kinect.SkeletonBasics
 
                 // prevent drawing outside of our render area
                 this.drawingGroup.ClipGeometry = new RectangleGeometry(new Rect(0.0, 0.0, RenderWidth, RenderHeight));
+
+                drawImages(dc);
             }
         }
 
@@ -261,52 +262,29 @@ namespace Microsoft.Samples.Kinect.SkeletonBasics
         /// <param name="drawingContext">drawing context to draw to</param>
         private void DrawBonesAndJoints(Skeleton skeleton, DrawingContext drawingContext)
         {
-            // Render Torso
-            this.DrawBone(skeleton, drawingContext, JointType.Head, JointType.ShoulderCenter);
-            this.DrawBone(skeleton, drawingContext, JointType.ShoulderCenter, JointType.ShoulderLeft);
-            this.DrawBone(skeleton, drawingContext, JointType.ShoulderCenter, JointType.ShoulderRight);
-            this.DrawBone(skeleton, drawingContext, JointType.ShoulderCenter, JointType.Spine);
-            this.DrawBone(skeleton, drawingContext, JointType.Spine, JointType.HipCenter);
-            this.DrawBone(skeleton, drawingContext, JointType.HipCenter, JointType.HipLeft);
-            this.DrawBone(skeleton, drawingContext, JointType.HipCenter, JointType.HipRight);
-
-            // Left Arm
-            this.DrawBone(skeleton, drawingContext, JointType.ShoulderLeft, JointType.ElbowLeft);
-            this.DrawBone(skeleton, drawingContext, JointType.ElbowLeft, JointType.WristLeft);
-            this.DrawBone(skeleton, drawingContext, JointType.WristLeft, JointType.HandLeft);
-
-            // Right Arm
-            this.DrawBone(skeleton, drawingContext, JointType.ShoulderRight, JointType.ElbowRight);
-            this.DrawBone(skeleton, drawingContext, JointType.ElbowRight, JointType.WristRight);
-            this.DrawBone(skeleton, drawingContext, JointType.WristRight, JointType.HandRight);
-
-            // Left Leg
-            this.DrawBone(skeleton, drawingContext, JointType.HipLeft, JointType.KneeLeft);
-            this.DrawBone(skeleton, drawingContext, JointType.KneeLeft, JointType.AnkleLeft);
-            this.DrawBone(skeleton, drawingContext, JointType.AnkleLeft, JointType.FootLeft);
-
-            // Right Leg
-            this.DrawBone(skeleton, drawingContext, JointType.HipRight, JointType.KneeRight);
-            this.DrawBone(skeleton, drawingContext, JointType.KneeRight, JointType.AnkleRight);
-            this.DrawBone(skeleton, drawingContext, JointType.AnkleRight, JointType.FootRight);
  
             // Render Joints
             foreach (Joint joint in skeleton.Joints)
             {
-                Brush drawBrush = null;
+                if (joint.JointType == JointType.HandRight)
+                {
+                    Brush drawBrush = null;
 
-                if (joint.TrackingState == JointTrackingState.Tracked)
-                {
-                    drawBrush = this.trackedJointBrush;                    
-                }
-                else if (joint.TrackingState == JointTrackingState.Inferred)
-                {
-                    drawBrush = this.inferredJointBrush;                    
-                }
+                    if (joint.TrackingState == JointTrackingState.Tracked)
+                    {
+                        drawBrush = this.trackedJointBrush;
+                    }
+                    else if (joint.TrackingState == JointTrackingState.Inferred)
+                    {
+                        drawBrush = this.inferredJointBrush;
+                    }
 
-                if (drawBrush != null)
-                {
-                    drawingContext.DrawEllipse(drawBrush, null, this.SkeletonPointToScreen(joint.Position), JointThickness, JointThickness);
+                    if (drawBrush != null)
+                    {
+                        drawingContext.DrawEllipse(drawBrush, null, this.SkeletonPointToScreen(joint.Position), JointThickness, JointThickness);
+                    }
+
+                    isClicking(skeleton, drawingContext);
                 }
             }
         }
@@ -382,65 +360,73 @@ namespace Microsoft.Samples.Kinect.SkeletonBasics
             }
         }
 
-        private void isDoingGangNamStyle(Skeleton skel, DrawingContext dc){
-            // Left wrist not tracked
-            if (skel.Joints[JointType.WristLeft].TrackingState != JointTrackingState.Tracked)
-                return;
-            // Right wrist not tracked
-            if (skel.Joints[JointType.WristRight].TrackingState != JointTrackingState.Tracked)
-                return;
 
-            // Testing if both wrists are Gangnam Style
-            double xdiff = System.Math.Pow(skel.Joints[JointType.WristLeft].Position.X - skel.Joints[JointType.WristRight].Position.X, 2.0);
-            double ydiff = System.Math.Pow(skel.Joints[JointType.WristLeft].Position.Y - skel.Joints[JointType.WristRight].Position.Y, 2.0);
+        private void drawImages(DrawingContext dc)
+        {
 
-            double distanceBetweenWrists = System.Math.Sqrt(xdiff + ydiff);
+            Image myImage = new Image();
+            myImage.Width = 200;
+            BitmapImage myBitmapImage = new BitmapImage();
+            myBitmapImage.BeginInit();
+            myBitmapImage.UriSource = new Uri(@"C:\miniature_video_testoon.jpg");
+            myBitmapImage.DecodePixelWidth = 200;
+            myBitmapImage.EndInit();
+            myImage.Source = myBitmapImage;
+            Rect rect = new Rect(new Point(10, 100), new Vector(180, 135));
 
-            DateTime now = System.DateTime.Now;
+            dc.DrawImage(myImage.Source, rect);
+        }
+
+        private void isClicking(Skeleton skeleton, DrawingContext dc)
+        {
             string text = "";
-
-            // Close wrists < 25 cm
-            if (distanceBetweenWrists < 0.25)
+            if (skeleton.Joints[JointType.HandRight].TrackingState == JointTrackingState.Tracked)
             {
-                // Crossed wrists
-                if (skel.Joints[JointType.HandLeft].Position.X > skel.Joints[JointType.HandRight].Position.X &&
-                skel.Joints[JointType.ElbowLeft].Position.X < skel.Joints[JointType.ElbowRight].Position.X)
+                Point handPos = SkeletonPointToScreen(skeleton.Joints[JointType.HandRight].Position);
+                if (handPos.X > 10 && handPos.X < 10 + 180)
                 {
-                    // Gathering last Gangnam timestamp
-                    lastGangNam = now;
-                    text = "Gangnam Style! " + lastGangNam.Minute + ":" + lastGangNam.Second + ":" + lastGangNam.Millisecond;
-                    //tab.Add(skel.Joints[JointType.WristLeft].Position);
-                }
-                else
-                {
-                    // Checking if Gangnam Style has been stopped since more than 1 second
-                    if (now.CompareTo(lastGangNam.AddSeconds(1)) < 0)
+                    if (handPos.Y > 10 && handPos.Y < 100 + 135)
                     {
-                        TimeSpan remaining = now.Subtract(lastGangNam.AddSeconds(1));
-                        text = "Losing Gangnam Style " + remaining;
+                        if (clicking)
+                        {
+                            if ((DateTime.Now.Second - lastClicking.Second) >= 3)
+                            {
+                                clicking = false;
+                                text = "Clicked " + (DateTime.Now.Second - lastClicking.Second);
+                                Console.WriteLine("clicked");
+                            }
+                            else
+                            {
+                                text = "Clicking " + (DateTime.Now.Second - lastClicking.Second);
+                            }
+                        }
+                        else
+                        {
+                            clicking = true;
+                            lastClicking = DateTime.Now;
+                            text = "Clicking " + (DateTime.Now.Second - lastClicking.Second);
+                        }
                     }
                     else
                     {
-                        text = "Close wrists ";
+                        clicking = false;
+                        text = "Not Clicking";
                     }
                 }
-            }
-            else
-            {
-                // Checking if Gangnam Style has been stopped since more than 1 second
-                if (now.CompareTo(lastGangNam.AddSeconds(1)) < 0)
+                else
                 {
-                    TimeSpan remaining = now.Subtract(lastGangNam.AddSeconds(1));
-                    text = "Losing Gangnam Style " + remaining;
+                    clicking = false;
+                    text = "Not Clicking";
                 }
             }
 
             dc.DrawText(new FormattedText(text,
-                        new System.Globalization.CultureInfo("fr-FR", false),
-                        System.Windows.FlowDirection.LeftToRight,
-                        new System.Windows.Media.Typeface("Verdana"),
-                        24.0,
-                        Brushes.Aqua), new Point(10, 10));
+                            new System.Globalization.CultureInfo("fr-FR", false),
+                            System.Windows.FlowDirection.LeftToRight,
+                            new System.Windows.Media.Typeface("Verdana"),
+                            24.0,
+                            Brushes.Aqua), new Point(10, 10));
         }
+
     }
 }
