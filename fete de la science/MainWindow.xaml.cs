@@ -88,12 +88,19 @@ namespace Microsoft.Samples.Kinect.SkeletonBasics
         private DateTime lastClicking;
         private Boolean clicking;
 
+        private Vector imageSize;
+        private Point imageOrigin1;
+        private Point imageOrigin2;
+
         /// <summary>
         /// Initializes a new instance of the MainWindow class.
         /// </summary>
         public MainWindow()
         {
             InitializeComponent();
+            imageSize = new Vector(180, 135);
+            imageOrigin1 = new Point(RenderWidth - 10 - imageSize.X, 10);
+            imageOrigin2 = new Point(RenderWidth - 10 - imageSize.X, 10 + 1 * (10 + imageSize.Y) );
         }
 
         /// <summary>
@@ -372,7 +379,7 @@ namespace Microsoft.Samples.Kinect.SkeletonBasics
             myBitmapImage.DecodePixelWidth = 200;
             myBitmapImage.EndInit();
             myImage.Source = myBitmapImage;
-            Rect rect = new Rect(new Point(10, 100), new Vector(180, 135));
+            Rect rect = new Rect(imageOrigin1, imageSize);
 
             dc.DrawImage(myImage.Source, rect);
         }
@@ -383,9 +390,9 @@ namespace Microsoft.Samples.Kinect.SkeletonBasics
             if (skeleton.Joints[JointType.HandRight].TrackingState == JointTrackingState.Tracked)
             {
                 Point handPos = SkeletonPointToScreen(skeleton.Joints[JointType.HandRight].Position);
-                if (handPos.X > 10 && handPos.X < 10 + 180)
+                if (handPos.X > imageOrigin1.X && handPos.X < imageOrigin1.X + imageSize.X)
                 {
-                    if (handPos.Y > 10 && handPos.Y < 100 + 135)
+                    if (handPos.Y > imageOrigin1.Y && handPos.Y < imageOrigin1.Y + imageSize.Y)
                     {
                         if (clicking)
                         {
